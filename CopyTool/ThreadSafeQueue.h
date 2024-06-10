@@ -11,13 +11,13 @@ public:
     virtual ~ThreadSafeQueue() { clear(); }
 
 public:
-    const T& front() const
+    const T front() const
     {
         std::scoped_lock lock(m_mutex);
         return m_deque.front();
     }
 
-    const T& back() const
+    const T back() const
     {
         std::scoped_lock lock(m_mutex);
         return m_deque.back();
@@ -38,7 +38,7 @@ public:
     void pushBack(const T& item)
     {
         std::scoped_lock lock(m_mutex);
-        m_deque.emplace_back(std::move(item));
+        m_deque.emplace_back(item);
 
         resume();
     }
@@ -56,7 +56,7 @@ public:
     void pushFront(const T& item)
     {
         std::scoped_lock lock(m_mutex);
-        m_deque.emplace_front(std::move(item));
+        m_deque.emplace_front(item);
 
         resume();
     }

@@ -20,28 +20,23 @@ const int ERR_DST_EXISTS = -3;
 
 const unsigned int nChunkSize = 64;
 
-bool inputReady = false;
 bool completed = false;
-
-std::mutex m;
-std::condition_variable cv;
 
 
 void reader_thread(const std::string& strSrcPath, std::shared_ptr<ThreadSafeQueue<std::vector<char>>> spQueue)
 {
 	std::ifstream input(strSrcPath.c_str(), std::ios::binary);
 
-	{
-		std::lock_guard lk(m);
-		if (input.is_open()) inputReady = true;
-	}
-	cv.notify_one();
-	
 	std::vector<char> vctBuffer(nChunkSize, 0);
 	
-	while (!input.eof())
+	auto rdBuf = input.rdbuf();
+	size_t nSize = 0;
+
+	while ((nSize = rdBuf->sgetn(vctBuffer.data(), vctBuffer.size())) && nSize)
 	{
-		input.read(vctBuffer.data(), vctBuffer.size());
+		if (nChunkSize > nSize)
+			vctBuffer.resize(nSize);
+
 		spQueue->pushBack(vctBuffer);
 	}
 
@@ -50,9 +45,6 @@ void reader_thread(const std::string& strSrcPath, std::shared_ptr<ThreadSafeQueu
 
 void writer_thread(const std::string& strDstPath, std::shared_ptr<ThreadSafeQueue<std::vector<char>>> spQueue)
 {
-	std::unique_lock lk(m);
-	cv.wait(lk, [] { return inputReady; });
-
 	std::ofstream output(strDstPath.c_str(), std::ios::binary | std::ios::trunc);
 
 	while (!completed || !spQueue->empty())
