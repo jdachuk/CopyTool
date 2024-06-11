@@ -3,14 +3,12 @@
 
 #include "ThreadSafeQueue.h"
 
+#include <array>
 #include <iostream>
 #include <fstream>
 #include <filesystem>
-#include <condition_variable>
-#include <mutex>
 #include <thread>
 #include <memory>
-#include <vector>
 
 const int SUCCESS = 0;
 
@@ -18,39 +16,36 @@ const int ERR_WRONG_USAGE = -1;
 const int ERR_SRC_MISSING = -2;
 const int ERR_DST_EXISTS = -3;
 
-const unsigned int nChunkSize = 64;
-
 bool completed = false;
 
+typedef std::pair<std::array<char, 64>, size_t> MyBuff;
 
-void reader_thread(const std::string& strSrcPath, std::shared_ptr<ThreadSafeQueue<std::vector<char>, 8>> spQueue)
+void reader_thread(const std::string& strSrcPath, std::shared_ptr<ThreadSafeQueue<MyBuff, 8>> spQueue)
 {
 	std::ifstream input(strSrcPath.c_str(), std::ios::binary);
 
-	std::vector<char> vctBuffer(nChunkSize, 0);
+	std::array<char, 64> vctBuffer;
 	
 	auto rdBuf = input.rdbuf();
 	size_t nSize = 0;
 
 	while ((nSize = rdBuf->sgetn(vctBuffer.data(), vctBuffer.size())) && nSize)
 	{
-		if (nChunkSize > nSize)
-			vctBuffer.resize(nSize);
-
-		spQueue->pushBack(vctBuffer);
+		spQueue->pushBack({ vctBuffer, nSize });
 	}
 
 	completed = true;
 }
 
-void writer_thread(const std::string& strDstPath, std::shared_ptr<ThreadSafeQueue<std::vector<char>, 8>> spQueue)
+void writer_thread(const std::string& strDstPath, std::shared_ptr<ThreadSafeQueue<MyBuff, 8>> spQueue)
 {
 	std::ofstream output(strDstPath.c_str(), std::ios::binary | std::ios::trunc);
 
 	while (!completed || !spQueue->empty())
 	{
-		std::vector<char> vctBuffer = spQueue->popFront();
-		output.write(vctBuffer.data(), vctBuffer.size());
+		if (!completed && spQueue->empty()) continue;
+		auto buffData = spQueue->popFront();
+		output.write(buffData.first.data(), buffData.second);
 	}
 }
 
@@ -81,7 +76,7 @@ int main(int argc, char* argv[])
 			return ERR_DST_EXISTS;
 	}
 
-	auto spQueue = std::make_shared<ThreadSafeQueue<std::vector<char>, 8>>();
+	auto spQueue = std::make_shared<ThreadSafeQueue<MyBuff, 8>>();
 
 	std::thread reader(reader_thread, strSrcPath, spQueue);
 	std::thread writer(writer_thread, strDstPath, spQueue);
