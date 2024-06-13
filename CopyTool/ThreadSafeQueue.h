@@ -41,11 +41,11 @@ public:
         return m_deque.size();
     }
 
-    void pushBack(const T& item)
+    void pushBack(T&& item)
     {
         if (full()) waitWrite();
         std::scoped_lock lock(m_mutex);
-        m_deque.emplace_back(item);
+        m_deque.emplace_back(std::move(item));
 
         resumeRead();
     }
@@ -62,11 +62,11 @@ public:
         return item;
     }
 
-    void pushFront(const T& item)
+    void pushFront(T&& item)
     {
         if (full()) waitWrite();
         std::scoped_lock lock(m_mutex);
-        m_deque.emplace_front(item);
+        m_deque.emplace_front(std::move(item));
 
         resumeRead();
     }
