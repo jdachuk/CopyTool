@@ -19,8 +19,9 @@ const int ERR_DST_EXISTS = -3;
 bool completed = false;
 
 typedef std::pair<std::array<char, 64>, size_t> MyBuff;
+typedef ThreadSafeQueue<MyBuff, 8>				MyQueue;
 
-void reader_thread(const std::string& strSrcPath, std::shared_ptr<ThreadSafeQueue<MyBuff, 8>> spQueue)
+void reader_thread(const std::string& strSrcPath, std::shared_ptr<MyQueue> spQueue)
 {
 	std::ifstream input(strSrcPath.c_str(), std::ios::binary);
 
@@ -37,7 +38,7 @@ void reader_thread(const std::string& strSrcPath, std::shared_ptr<ThreadSafeQueu
 	completed = true;
 }
 
-void writer_thread(const std::string& strDstPath, std::shared_ptr<ThreadSafeQueue<MyBuff, 8>> spQueue)
+void writer_thread(const std::string& strDstPath, std::shared_ptr<MyQueue> spQueue)
 {
 	std::ofstream output(strDstPath.c_str(), std::ios::binary | std::ios::trunc);
 
@@ -76,7 +77,7 @@ int main(int argc, char* argv[])
 			return ERR_DST_EXISTS;
 	}
 
-	auto spQueue = std::make_shared<ThreadSafeQueue<MyBuff, 8>>();
+	auto spQueue = std::make_shared<MyQueue>();
 
 	std::thread reader(reader_thread, strSrcPath, spQueue);
 	std::thread writer(writer_thread, strDstPath, spQueue);
