@@ -11,18 +11,6 @@ public:
     virtual ~ThreadSafeQueue() { clear(); }
 
 public:
-    const T front() const
-    {
-        std::scoped_lock lock(m_mutex);
-        return m_deque.front();
-    }
-
-    const T back() const
-    {
-        std::scoped_lock lock(m_mutex);
-        return m_deque.back();
-    }
-
     bool empty() const
     {
         std::scoped_lock lock(m_mutex);
